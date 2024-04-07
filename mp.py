@@ -2,28 +2,28 @@ import multiprocessing
 import time
 
 
-def search_files(files, keyword, results_queue):
-    found_files = []
-    for file in files:
-        try:
-            with open(file, "r") as f:
-                if keyword in f.read():
-                    found_files.append(file)
-        except Exception as e:
-            print(f"Error processing file {file}: {e}")
-    results_queue.put({keyword: found_files})
+def search_files(file, keywords, results_queue):
+    found_keywords = []
+
+    try:
+        with open(file, "r") as f:
+            content = f.read()
+            for keyword in keywords:
+                if keyword in content:
+                    found_keywords.append(keyword)
+    except Exception as e:
+        print(f"Error processing file {file}: {e}")
+    results_queue.put({file: found_keywords})
 
 
 def search_files_with_processes(files, keywords):
     manager = multiprocessing.Manager()
     results_queue = manager.Queue()
     processes = []
-    files_per_process = len(files) // len(keywords)
-    for i in range(0, len(files), files_per_process):
-        process_files = files[i : i + files_per_process]
+    for file in files:
         process = multiprocessing.Process(
             target=search_files,
-            args=(process_files, keywords[i // files_per_process], results_queue),
+            args=(file, keywords, results_queue),
         )
         processes.append(process)
         process.start()
@@ -35,7 +35,16 @@ def search_files_with_processes(files, keywords):
     while not results_queue.empty():
         results.update(results_queue.get())
 
-    return results
+    new_results = {}
+
+    for file, keywords in results.items():
+        for keyword in keywords:
+            if keyword in new_results:
+                new_results[keyword].append(file)
+            else:
+                new_results[keyword] = [file]
+
+    return new_results
 
 
 if __name__ == "__main__":

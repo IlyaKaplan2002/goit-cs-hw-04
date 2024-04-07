@@ -3,40 +3,47 @@ import time
 
 
 class KeywordSearchThread(threading.Thread):
-    def __init__(self, files, keyword, results):
+    def __init__(self, file, keywords, results):
         threading.Thread.__init__(self)
-        self.files = files
-        self.keyword = keyword
+        self.file = file
+        self.keywords = keywords
         self.results = results
 
     def run(self):
-        found_files = []
-        for file in self.files:
-            try:
-                with open(file, "r") as f:
-                    if self.keyword in f.read():
-                        found_files.append(file)
-            except Exception as e:
-                print(f"Error processing file {file}: {e}")
-        self.results[self.keyword] = found_files
+        found_keywords = []
+        try:
+            with open(self.file, "r") as f:
+                content = f.read()
+
+                for keyword in self.keywords:
+                    if keyword in content:
+                        found_keywords.append(keyword)
+        except Exception as e:
+            print(f"Error processing file {self.file}: {e}")
+        self.results[self.file] = found_keywords
 
 
 def search_files_with_threads(files, keywords):
     results = {}
     threads = []
-    files_per_thread = len(files) // len(keywords)
-    for i in range(0, len(files), files_per_thread):
-        thread_files = files[i : i + files_per_thread]
-        thread = KeywordSearchThread(
-            thread_files, keywords[i // files_per_thread], results
-        )
+    for file in files:
+        thread = KeywordSearchThread(file, keywords, results)
         threads.append(thread)
         thread.start()
 
     for thread in threads:
         thread.join()
 
-    return results
+    new_results = {}
+
+    for file, keywords in results.items():
+        for keyword in keywords:
+            if keyword in new_results:
+                new_results[keyword].append(file)
+            else:
+                new_results[keyword] = [file]
+
+    return new_results
 
 
 if __name__ == "__main__":
